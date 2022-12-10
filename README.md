@@ -1,1 +1,1 @@
-# openwerewolves
+# Open Werewolves Game Server
