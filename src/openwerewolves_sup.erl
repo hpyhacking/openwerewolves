@@ -8,5 +8,8 @@ start_link() ->
 	supervisor:start_link({local, ?MODULE}, ?MODULE, []).
 
 init([]) ->
-	Procs = [],
-	{ok, {{one_for_one, 1, 5}, Procs}}.
+  RestartStrategy = {one_for_one, 1, 5},
+  ListenerSup = {player_sup, {player_sup, start_link, []}, 
+                 permanent, infinity, supervisor, [player_sup]},
+	Procs = [ListenerSup],
+	{ok, {RestartStrategy, Procs}}.

@@ -6,12 +6,14 @@
 -export([websocket_info/2]).
 
 init(Req, _Opts) ->
-  #{nickname := Nickname, uuid := UUID} = fetch_query(Req),
-  {cowboy_websocket, Req, #{nickname => Nickname, uuid => UUID}}.
+  #{uuid := UUID, nickname := Nickname} = fetch_query(Req),
+  {cowboy_websocket, Req, #{uuid => list_to_atom(UUID), nickname => Nickname}}.
 
 websocket_init(State) ->
-  io:format("websocket_init ~p~n", [State]),
+  #{uuid := UUID, nickname := Nickname} = State,
+
   %% spawn player process using nickname & uuid
+  player_sup:start_player(UUID, Nickname),
   {[], State}.
 
 websocket_handle({text, Msg}, State) ->
