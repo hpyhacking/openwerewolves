@@ -6,5 +6,6 @@ DEPS = cowboy
 dep_cowboy_commit = 2.9.0
 
 BUILD_DEPS += relx
+SHELL_OPTS = -eval 'application:ensure_all_started(openwerewolves)'
 
 include erlang.mk
