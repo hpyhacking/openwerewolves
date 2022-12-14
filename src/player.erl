@@ -44,11 +44,11 @@ handle_call(_Request, _From, State) ->
 handle_cast({cast, Data}, State) ->
   erlang:send(State#state.client, {cast, Data}),
   {noreply, State};
-handle_cast({create_game}, State = #state{player = _Player}) ->
+handle_cast({create_game}, State = #state{player = Player}) ->
   PIN = game_sup:init_game(),
   game:join(PIN, Player),
   {noreply, State#state{game_pin = PIN}};
-handle_cast({join_game, GamePIN}, State = #{player := Player}) ->
+handle_cast({join_game, GamePIN}, State = #state{player = Player}) ->
   game:join(GamePIN, Player),
   {noreply, State#state{game_pin = GamePIN}};
 handle_cast({ready}, State) ->
