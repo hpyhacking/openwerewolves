@@ -6,16 +6,16 @@
 -export([websocket_info/2]).
 
 init(Req, _Opts) ->
-  #{player := Player, nickname := Nickname} = fetch_query(Req),
-  {cowboy_websocket, Req, #{player => list_to_atom(Player), nickname => Nickname}}.
+  #{uuid := UUID, nickname := Nickname} = fetch_query(Req),
+  {cowboy_websocket, Req, #{uuid => list_to_atom(UUID), nickname => Nickname}}.
 
-websocket_init(State = #{player := Player, nickname := Nickname}) ->
-  player_sup:start_player(Player, Nickname),
+websocket_init(State = #{uuid := UUID, nickname := Nickname}) ->
+  player_sup:start_player(UUID, Nickname),
   {[], State}.
 
-websocket_handle({text, Json}, State = #{player := Player}) ->
+websocket_handle({text, Json}, State = #{uuid := UUID}) ->
   Data = jsone:decode(Json),
-  player:to_server(Player, Data),
+  player:to_server(UUID, Data),
 	{[], State};
 websocket_handle(_Data, State) ->
 	{[], State}.

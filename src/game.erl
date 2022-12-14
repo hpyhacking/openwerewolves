@@ -1,6 +1,8 @@
 -module(game).
 -behaviour(gen_statem).
 
+-include_lib("player.hrl").
+
 %% API.
 -export([start_link/1]).
 -export([join/2, died/2, start/1, all_players/1]).

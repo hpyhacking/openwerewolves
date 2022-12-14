@@ -53,7 +53,7 @@ content.style.display = "none";
 
 function connect()
 {
-	wsHost = server.value + "?player=" + uuid.value + "&nickname=烙餅";
+	wsHost = server.value + "?uuid=" + uuid.value + "&nickname=烙餅";
 	websocket = new WebSocket(wsHost);
 	showScreen('<b>Connecting to: ' +  wsHost + '</b>');
 	websocket.onopen = function(evt) { onOpen(evt) };
