@@ -12,6 +12,6 @@ init([]) ->
 	Procs = [],
 	{ok, {{one_for_one, 1, 5}, Procs}}.
 
-start_player(UUID, Nickname) when is_atom(UUID) ->
-  supervisor:start_child(?MODULE, #{id => UUID, start => {player, start_link, [UUID, Nickname]}}),
-  ok = player:set_connection(UUID).
+start_player(Player, Nickname) when is_atom(Player) ->
+  supervisor:start_child(?MODULE, #{id => Player, start => {player, start_link, [Player, Nickname]}}),
+  ok = player:set_connection(Player).

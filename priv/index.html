@@ -53,7 +53,7 @@ content.style.display = "none";
 
 function connect()
 {
-	wsHost = server.value + "?uuid=" + uuid.value + "&nickname=烙餅";
+	wsHost = server.value + "?player=" + uuid.value + "&nickname=烙餅";
 	websocket = new WebSocket(wsHost);
 	showScreen('<b>Connecting to: ' +  wsHost + '</b>');
 	websocket.onopen = function(evt) { onOpen(evt) };
@@ -77,7 +77,7 @@ function toggle_connection(){
 function sendTxt() {
 	if (websocket.readyState == websocket.OPEN) {
 		var msg = message.value;
-		websocket.send(JSON.stringify({message: msg}));
+		websocket.send(JSON.stringify({action: 'create_game'}));
 		showScreen('sending: ' + msg);
 	} else {
 		showScreen('websocket is not connected');

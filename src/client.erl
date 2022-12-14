@@ -6,25 +6,21 @@
 -export([websocket_info/2]).
 
 init(Req, _Opts) ->
-  #{uuid := UUID, nickname := Nickname} = fetch_query(Req),
-  {cowboy_websocket, Req, #{uuid => list_to_atom(UUID), nickname => Nickname}}.
+  #{player := Player, nickname := Nickname} = fetch_query(Req),
+  {cowboy_websocket, Req, #{player => list_to_atom(Player), nickname => Nickname}}.
 
-websocket_init(State) ->
-  #{uuid := UUID, nickname := Nickname} = State,
-  %% spawn player process using nickname & uuid
-  player_sup:start_player(UUID, Nickname),
-  player:to_client(UUID, #{message => <<"Hello World">>}),
+websocket_init(State = #{player := Player, nickname := Nickname}) ->
+  player_sup:start_player(Player, Nickname),
   {[], State}.
 
-websocket_handle({text, Json}, State) ->
-  #{uuid := UUID} = State,
+websocket_handle({text, Json}, State = #{player := Player}) ->
   Data = jsone:decode(Json),
-  player:to_game(UUID, Data),
+  player:to_server(Player, Data),
 	{[], State};
 websocket_handle(_Data, State) ->
 	{[], State}.
 
-websocket_info({data, Data}, State) ->
+websocket_info({cast, Data}, State) ->
 	{[{text, jsone:encode(Data)}], State};
 websocket_info(_Info, State) ->
 	{[], State}.
