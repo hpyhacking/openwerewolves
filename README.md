@@ -1,1 +1,1 @@
-# Open Werewolves Game Server
+# Who Is Spy Game
