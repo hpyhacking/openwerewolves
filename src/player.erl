@@ -43,15 +43,18 @@ handle_call(set_connection, {ClientPid, _}, State) ->
 handle_call(_Request, _From, State) ->
   {reply, ignored, State}.
 
-handle_cast({cast, Data}, State) ->
-  erlang:send(State#state.client, {cast, Data}),
+handle_cast({to_client, Data}, State) ->
+  client:send(State#state.client, Data),
   {noreply, State};
 handle_cast({create_game}, State = #state{uuid = UUID, nickname = Nickname}) ->
   PIN = game_sup:init_game(),
-  game:join(PIN, #player{uuid = UUID, nickname = Nickname}),
+  ok = game:join(PIN, #player{uuid = UUID, nickname = Nickname}),
+  client:send(State#state.client, #{pin => PIN}),
   {noreply, State#state{game_pin = PIN}};
 handle_cast({join_game, PIN}, State = #state{uuid = UUID, nickname = Nickname}) ->
-  game:join(PIN, #player{uuid = UUID, nickname = Nickname}),
+  PIN2 = list_to_atom(binary_to_list(PIN)),
+  ok = game:join(PIN2, #player{uuid = UUID, nickname = Nickname}),
+  client:send(State#state.client, #{pin => PIN}),
   {noreply, State#state{game_pin = PIN}};
 handle_cast({ready}, State) ->
   {noreply, State};

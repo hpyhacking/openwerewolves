@@ -20,8 +20,9 @@
 	</div>
 
 	<div id="connected">
-		<input type='text' id="message" value=""></input>
-		<button type="button" onclick="sendTxt();">send</button>
+		<input type='text' id="pin" value=""></input>
+		<button type="button" onclick="create_game();">Create Game</button>
+		<button type="button" onclick="join_game();">Join Game</button>
 	</div>
 </nav>
 
@@ -40,7 +41,7 @@
 
 var websocket;
 var server = document.getElementById("server");
-var message = document.getElementById("message");
+var pin = document.getElementById("pin");
 var connecting = document.getElementById("connecting");
 var connected = document.getElementById("connected");
 var content = document.getElementById("content");
@@ -48,8 +49,6 @@ var output = document.getElementById("output");
 var uuid = document.getElementById("uuid");
 
 server.value = "ws://" + window.location.host + "/websocket";
-connected.style.display = "none";
-content.style.display = "none";
 
 function connect()
 {
@@ -74,11 +73,17 @@ function toggle_connection(){
 	};
 };
 
-function sendTxt() {
+function create_game() {
 	if (websocket.readyState == websocket.OPEN) {
-		var msg = message.value;
 		websocket.send(JSON.stringify({action: 'create_game'}));
-		showScreen('sending: ' + msg);
+	} else {
+		showScreen('websocket is not connected');
+	};
+};
+
+function join_game() {
+	if (websocket.readyState == websocket.OPEN) {
+		websocket.send(JSON.stringify({action: 'join_game', data: pin.value}));
 	} else {
 		showScreen('websocket is not connected');
 	};
@@ -86,8 +91,11 @@ function sendTxt() {
 
 function onOpen(evt) {
 	showScreen('<span style="color: green;">CONNECTED </span>');
-	connected.style.display = "";
-	content.style.display = "";
+    let pin = function() {
+      websocket.send("ping")
+    }
+
+    window.setInterval(pin, 1000);
 };
 
 function onClose(evt) {
@@ -96,7 +104,8 @@ function onClose(evt) {
 
 function onMessage(evt) {
   let obj = JSON.parse(evt.data);
-	showScreen('<span style="color: blue;">RESPONSE: ' + obj.message + '</span>');
+  console.log(obj);
+	showScreen('<span style="color: blue;">RESPONSE: ' + JSON.stringify(obj) + '</span>');
 };
 
 function onError(evt) {
