@@ -11,21 +11,21 @@ init(Req, _Opts) ->
 
 websocket_init(State) ->
   #{uuid := UUID, nickname := Nickname} = State,
-
   %% spawn player process using nickname & uuid
   player_sup:start_player(UUID, Nickname),
+  player:to_client(UUID, #{message => <<"Hello World">>}),
   {[], State}.
 
-websocket_handle({text, Msg}, State) ->
-  Pid = list_to_binary(pid_to_list(self())),
-	{[{text, <<"[", Pid/binary, "] That's what she said! ",  Msg/binary >>}], State};
+websocket_handle({text, Json}, State) ->
+  #{uuid := UUID} = State,
+  Data = jsone:decode(Json),
+  player:to_game(UUID, Data),
+	{[], State};
 websocket_handle(_Data, State) ->
 	{[], State}.
 
-websocket_info({timeout, _Ref, Msg}, State) ->
-  io:format("~s websocket_info ~s ~n", [?MODULE, pid_to_list(self())]),
-	%erlang:start_timer(1000, self(), <<"How' you doin'?">>),
-	{[{text, Msg}], State};
+websocket_info({data, Data}, State) ->
+	{[{text, jsone:encode(Data)}], State};
 websocket_info(_Info, State) ->
 	{[], State}.
 
