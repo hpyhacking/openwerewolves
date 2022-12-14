@@ -1,4 +1,4 @@
--module(openwerewolves_sup).
+-module(whospy_sup).
 -behaviour(supervisor).
 
 -export([start_link/0]).
