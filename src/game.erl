@@ -20,10 +20,6 @@
 -define(MINIMUM_PLAYERS, 4).
 -define(MAXIMUM_PLAYERS, 16).
 
--define(BROADCAST, [{state_timeout, 500, broadcast}]).
--define(BROADCAST(M), [{state_timeout, M, broadcast}]).
--define(BROADCAST_WIN, [{state_timeout, 500, broadcast_win}]).
-
 %% API.
 
 start_link(PIN) ->
@@ -62,11 +58,12 @@ init([]) ->
 waiting(enter, _OldState, StateData) ->
   logger:log(debug, "game:waiting enter state: ~p", [StateData]),
   ReplacedPlayers = [X#waiting_player{is_ready = false} || X <- StateData#state.waiting_players],
-  {keep_state, StateData#state{roles = [], playing_players = [], waiting_players = ReplacedPlayers}, ?BROADCAST(1000)};
+  NewStateData = #state{waiting_players = ReplacedPlayers},
+  {keep_state, NewStateData, [{state_timeout, 100, broadcast}]};
 
 waiting(state_timeout, broadcast, #state{waiting_players = Players}) ->
-  lists:foreach(broadcast(<<"WAITING">>), Players),
-  {keep_state_and_data, ?BROADCAST(1000)};
+  lists:foreach(broadcast(<<"WAITING">>, broadcast_waiting), Players),
+  {keep_state_and_data, [{state_timeout, 1000, broadcast}]};
 
 waiting(cast, {ready, #player{uuid = UUID}}, StateData = #state{waiting_players = Players}) ->
   case is_exist_in_waiting(UUID, Players) of
@@ -95,10 +92,10 @@ waiting(cast, {died, _Player}, _StateData) ->
 
 playing(enter, _OldState, StateData) ->
   logger:log(debug, "game:playing enter state: ~p", [StateData]),
-  {keep_state_and_data, ?BROADCAST};
+  {keep_state_and_data, [{state_timeout, 500, broadcast}]};
 
 playing(state_timeout, broadcast, State) ->
-  lists:foreach(broadcast(<<"PLAYING">>), State#state.waiting_players),
+  lists:foreach(broadcast(<<"PLAYING">>, broadcast_playing), State#state.waiting_players),
   keep_state_and_data;
 
 playing(state_timeout, {broadcast_win, Win}, State) ->
@@ -122,7 +119,7 @@ playing(cast, {died, #player{uuid = UUID}}, S = #state{roles = Roles, playing_pl
       case witch_team_win(Roles, PlayingPlayers) of
         [] ->
           %% no team has won yet
-          {keep_state, S#state{playing_players = PlayingPlayers}, ?BROADCAST};
+          {keep_state, S#state{playing_players = PlayingPlayers}, [{state_timeout, 500, broadcast}]};
         L ->
           {keep_state, S#state{playing_players = PlayingPlayers}, [{state_timeout, 500, {broadcast_win, L}}]}
       end
@@ -219,9 +216,6 @@ update_died(UUID, [H|T]) when UUID == H#playing_player.player#player.uuid ->
   [H#playing_player{is_died = true} | T];
 update_died(UUID, [H|T]) ->
   update_died(UUID, T ++ [H]).
-
-broadcast(Data) ->
-  broadcast(Data, broadcast).
 
 broadcast(Data, Action) ->
   fun(#waiting_player{player = #player{uuid = UUID}}) ->
