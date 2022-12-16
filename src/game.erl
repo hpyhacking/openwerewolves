@@ -61,8 +61,9 @@ waiting(enter, _OldState, StateData) ->
   NewStateData = #state{waiting_players = ReplacedPlayers},
   {keep_state, NewStateData, [{state_timeout, 100, broadcast}]};
 
-waiting(state_timeout, broadcast, #state{waiting_players = Players}) ->
-  lists:foreach(broadcast(<<"WAITING">>, broadcast_waiting), Players),
+waiting(state_timeout, broadcast, State = #state{waiting_players = Players}) ->
+  Data = state_to_broadcast_waiting(State),
+  lists:foreach(broadcast(Data, broadcast_waiting), Players),
   {keep_state_and_data, [{state_timeout, 1000, broadcast}]};
 
 waiting(cast, {ready, #player{uuid = UUID}}, StateData = #state{waiting_players = Players}) ->
@@ -74,14 +75,15 @@ waiting(cast, {ready, #player{uuid = UUID}}, StateData = #state{waiting_players 
   end;
 
 waiting(cast, start, StateData) ->
-  Players = [P#waiting_player.player || P <- StateData#state.waiting_players, P#waiting_player.is_ready],
+  {C, L} = count_ready_players(StateData#state.waiting_players),
+  Players = [X#waiting_player.player || X <- L],
 
-  case length(Players) >= ?MINIMUM_PLAYERS of
-    true ->
-      [Roles = [Folk, Spy, Fool]] = [X || X <- ?ROLES, lists:sum(X) =:= length(Players)],
-      PlayingPlayers = shuffle(assign_roles(Folk, Spy, Fool, shuffle(Players))),
+  case match_roles_by_count(C) of
+    Roles = [Folk, Spy, Fool] ->
+      [H|T] = shuffle(assign_roles(Folk, Spy, Fool, shuffle(Players))),
+      PlayingPlayers = [H#playing_player{first_speech = true}|T],
       {next_state, playing, StateData#state{roles = Roles, playing_players = PlayingPlayers}};
-    false -> 
+    'undefined' ->
       keep_state_and_data
   end;
 
@@ -95,7 +97,8 @@ playing(enter, _OldState, StateData) ->
   {keep_state_and_data, [{state_timeout, 500, broadcast}]};
 
 playing(state_timeout, broadcast, State) ->
-  lists:foreach(broadcast(<<"PLAYING">>, broadcast_playing), State#state.waiting_players),
+  Data = state_to_broadcast_playing(State),
+  lists:foreach(broadcast(Data, broadcast_playing), State#state.waiting_players),
   keep_state_and_data;
 
 playing(state_timeout, {broadcast_win, Win}, State) ->
@@ -229,5 +232,39 @@ count(Role, [H|T], Acc) when H#playing_player.is_died == false, H#playing_player
   count(Role, T, Acc + 1);
 count(Role, [_|T], Acc) ->
   count(Role, T, Acc).
-  
-  
+
+state_to_broadcast_playing(#state{playing_players = Players}) ->
+  P = [[{uuid, X#playing_player.player#player.uuid},
+        {nickname, list_to_binary(X#playing_player.player#player.nickname)},
+        {first_speech, X#playing_player.first_speech},
+        {is_died, X#playing_player.is_died}] || X <- Players],
+  #{players => P}.
+
+state_to_broadcast_waiting(#state{waiting_players = Players}) ->
+  {C, _} = count_ready_players(Players),
+
+  P = [[{uuid, X#waiting_player.player#player.uuid},
+        {nickname, list_to_binary(X#waiting_player.player#player.nickname)},
+        {is_ready, X#waiting_player.is_ready}] || X <- Players],
+
+  case match_roles_by_count(C) of
+    'undefined' ->
+      #{ready => C, players => P};
+    R ->
+      #{ready => C, roles => R, players => P}
+  end.
+
+match_roles_by_count(C) ->
+  case [X || X <- ?ROLES, lists:sum(X) =:= C] of
+    [R] -> R;
+    [] -> 'undefined'
+  end.
+
+count_ready_players(Players) ->
+  count_ready_players(Players, 0, []).
+
+count_ready_players([], Acc, L) -> {Acc, L};
+count_ready_players([H|T], Acc, L) when H#waiting_player.is_ready == true ->
+  count_ready_players(T, Acc + 1, [H|L]);
+count_ready_players([_H|T], Acc, L) ->
+  count_ready_players(T, Acc, L).

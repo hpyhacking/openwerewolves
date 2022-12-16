@@ -99,15 +99,15 @@ function on_open(evt) {
 
 function on_message(evt) {
   let obj = JSON.parse(evt.data);
-  console.log(obj);
 
   if (obj && obj['action'] == 'create') {
     pin.value = obj['data']
   }
 
-  if (obj && obj['action'] == 'broadcast') {
+  if (obj && (obj['action'] == 'broadcast_waiting' || obj['action'] == 'broadcast_playing')) {
     showBroadcast(obj);
   } else {
+    console.log(obj);
     showScreen('<span style="color: blue;">RESPONSE: ' + JSON.stringify(obj) + '</span>');
   }
 };

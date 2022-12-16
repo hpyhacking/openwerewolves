@@ -7,17 +7,8 @@
                           first_speech = false :: boolean(),
                           player :: #player{} }).
 
--record(waiting_player, { is_me = false :: boolean(),
-                          is_ready = false :: boolean(),
+-record(waiting_player, { is_ready = false :: boolean(),
                           player   :: #player{} }).
-
--record(game, { pin     :: atom(),
-                state   :: waiting | playing,
-                folks   :: 'undefined' | integer(),
-                spies   :: 'undefined' | integer(),
-                fools   :: 'undefined' | integer(),
-                playing_players :: nonempty_list(playing_player),
-                waiting_players :: nonempty_list(waiting_player) }).
 
 -record(request, { action :: atom(),
                    data :: 'undefined' | tuple() }).
