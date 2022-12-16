@@ -6,7 +6,8 @@
 
 start(_Type, _Args) ->
 	Router = [{"/", cowboy_static, {priv_file, whospy, "index.html"}},
-						{"/websocket", client, []}],
+						{"/websocket", client, []},
+            {"/[...]", cowboy_static, {priv_dir, whospy, "./"}}],
 	Dispatch = cowboy_router:compile([{'_', Router}]),
 	Env = #{env => #{dispatch => Dispatch}},
 

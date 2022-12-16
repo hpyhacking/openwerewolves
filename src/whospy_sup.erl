@@ -9,7 +9,9 @@ start_link() ->
 
 init([]) ->
   RestartStrategy = {one_for_one, 1, 5},
-  ListenerSup = {player_sup, {player_sup, start_link, []}, 
+  PlayerSup = {player_sup, {player_sup, start_link, []}, 
                  permanent, infinity, supervisor, [player_sup]},
-	Procs = [ListenerSup],
+  GameSup = {game_sup, {game_sup, start_link, []}, 
+                 permanent, infinity, supervisor, [game_sup]},
+	Procs = [PlayerSup, GameSup],
 	{ok, {RestartStrategy, Procs}}.

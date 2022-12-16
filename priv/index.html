@@ -1,118 +1,33 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-	<meta charset="utf-8"/>
-	<title>Websocket client</title>
-</head>
+  <head>
+    <meta charset="utf-8"/>
+    <title>Who Is Spy</title>
+  </head>
+  <body>
 
-<body>
+    <header>
+      <h1>Who Is Spy Client - <span id='nickname'></span></h1>
+    </header>
 
-<header>
-	<h1>Websocket client</h1>
-	<div id="status"></div>
-</header>
+    <nav>
+      <input type='text' id="uuid" value=""></input><br />
+      <input type='text' id="server" value=""></input><br /><br />
+      <button type="button" id='btn_connect'>Connection</button><br /><br />
 
-<nav>
-	<div id="connecting">
-    <input type='text' id="uuid" value=""></input><br />
-		<input type='text' id="server" value=""></input>
-		<button type="button" onclick="toggle_connection()">connection</button>
-	</div>
+      <input type='text' id="pin" value=""></input><br /><br />
+      <button type="button" id='btn_create'>Create</button>
+      <button type="button" id='btn_join'>Join</button>
+      <button type="button" id='btn_ready'>Ready</button>
+      <button type="button" id='btn_start'>Start</button>
+      <button type="button" id='btn_died'>Died</button>
+    </nav>
 
-	<div id="connected">
-		<input type='text' id="message" value=""></input>
-		<button type="button" onclick="sendTxt();">send</button>
-	</div>
-</nav>
+    <main id="content">
+      <div id="broadcast"></div>
+      <div id="output"></div>
+    </main>
 
-<main id="content">
-	<button id="clear" onclick="clearScreen()" >Clear text</button>
-	<div id="output"></div>
-</main>
-
-<script type="module">
-  import { v4 as uuidv4 } from 'https://jspm.dev/uuid';
-  var uuid = document.getElementById("uuid");
-  uuid.value = uuidv4();
-</script>
-
-<script type="text/javascript">
-
-var websocket;
-var server = document.getElementById("server");
-var message = document.getElementById("message");
-var connecting = document.getElementById("connecting");
-var connected = document.getElementById("connected");
-var content = document.getElementById("content");
-var output = document.getElementById("output");
-var uuid = document.getElementById("uuid");
-
-server.value = "ws://" + window.location.host + "/websocket";
-connected.style.display = "none";
-content.style.display = "none";
-
-function connect()
-{
-	wsHost = server.value + "?uuid=" + uuid.value + "&nickname=烙餅";
-	websocket = new WebSocket(wsHost);
-	showScreen('<b>Connecting to: ' +  wsHost + '</b>');
-	websocket.onopen = function(evt) { onOpen(evt) };
-	websocket.onclose = function(evt) { onClose(evt) };
-	websocket.onmessage = function(evt) { onMessage(evt) };
-	websocket.onerror = function(evt) { onError(evt) };
-};
-
-function disconnect() {
-	websocket.close();
-};
-
-function toggle_connection(){
-	if (websocket && websocket.readyState == websocket.OPEN) {
-		disconnect();
-	} else {
-		connect();
-	};
-};
-
-function sendTxt() {
-	if (websocket.readyState == websocket.OPEN) {
-		var msg = message.value;
-		websocket.send(JSON.stringify({message: msg}));
-		showScreen('sending: ' + msg);
-	} else {
-		showScreen('websocket is not connected');
-	};
-};
-
-function onOpen(evt) {
-	showScreen('<span style="color: green;">CONNECTED </span>');
-	connected.style.display = "";
-	content.style.display = "";
-};
-
-function onClose(evt) {
-	showScreen('<span style="color: red;">DISCONNECTED</span>');
-};
-
-function onMessage(evt) {
-  let obj = JSON.parse(evt.data);
-	showScreen('<span style="color: blue;">RESPONSE: ' + obj.message + '</span>');
-};
-
-function onError(evt) {
-	showScreen('<span style="color: red;">ERROR: ' + evt.data + '</span>');
-};
-
-function showScreen(html) {
-	var el = document.createElement("p");
-	el.innerHTML = html;
-	output.insertBefore(el, output.firstChild);
-};
-
-function clearScreen() {
-	output.innerHTML = "";
-};
-
-</script>
-</body>
+    <script type="module" src="./index.js"></script>
+  </body>
 </html> 
