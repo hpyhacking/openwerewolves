@@ -58,7 +58,11 @@ init([]) ->
 waiting(enter, _OldState, StateData) ->
   logger:log(debug, "game:waiting enter state: ~p", [StateData]),
   ReplacedPlayers = [X#waiting_player{is_ready = false} || X <- StateData#state.waiting_players],
-  {keep_state, StateData#state{playing_players = [], waiting_players = ReplacedPlayers}};
+  {keep_state, StateData#state{playing_players = [], waiting_players = ReplacedPlayers}, ?BROADCAST(1000)};
+
+waiting(state_timeout, broadcast, #state{waiting_players = Players}) ->
+  lists:foreach(broadcast(<<"WAITING">>), Players),
+  {keep_state_and_data, ?BROADCAST(1000)};
 
 waiting(cast, {ready, #player{uuid = UUID}}, StateData = #state{waiting_players = Players}) ->
   case is_exist(UUID, Players) of
@@ -74,31 +78,35 @@ waiting(cast, start, StateData) ->
   case length(Players) >= ?MINIMUM_PLAYERS of
     true ->
       [[Folk, Spy, Fool]] = [X || X <- ?ROLES, lists:sum(X) =:= length(Players)],
-      PlayingPlayers = assign_roles(Folk, Spy, Fool, shuffle(Players)),
+      PlayingPlayers = shuffle(assign_roles(Folk, Spy, Fool, shuffle(Players))),
       {next_state, playing, StateData#state{playing_players = PlayingPlayers}};
     false -> 
       keep_state_and_data
   end;
 
-waiting(cast, {died, _Player}, StateData) ->
-  {keep_state, StateData};
+waiting(cast, {died, _Player}, _StateData) ->
+  keep_state_and_data;
 
 ?HANDLE_COMMON.
 
 playing(enter, _OldState, StateData) ->
   logger:log(debug, "game:playing enter state: ~p", [StateData]),
-  %% boardcast to all players
+  {keep_state_and_data, ?BROADCAST};
+
+playing(state_timeout, broadcast, State) ->
+  lists:foreach(broadcast(<<"PLAYING">>), State#state.waiting_players),
   keep_state_and_data;
 
 playing(cast, {ready, #player{uuid = UUID}}, _StateData) ->
-  player:response(UUID, #response{action = ready, data = error}),
+  player:response(UUID, #response{action = error, data = playing_ready}),
   keep_state_and_data;
 
 playing(cast, start, _StateData) ->
 	keep_state_and_data;
 
-playing(cast, {died, _Player}, _StateData) ->
-	keep_state_and_data;
+playing(cast, {died, #player{uuid = UUID}}, StateData) ->
+  PlayingPlayers = update_died(UUID, StateData#state.playing_players),
+  {keep_state, StateData#state{playing_players = PlayingPlayers}, ?BROADCAST};
 
 ?HANDLE_COMMON.
 
@@ -163,4 +171,12 @@ is_exist(UUID, WaitingPlayers) ->
   Players = [X#waiting_player.player || X <- WaitingPlayers],
   lists:keyfind(UUID, #player.uuid, Players).
 
+update_died(UUID, [H|T]) when UUID == H#playing_player.player#player.uuid ->
+  [H#playing_player{is_died = true} | T];
+update_died(UUID, [H|T]) ->
+  update_died(UUID, T ++ [H]).
 
+broadcast(Data) ->
+  fun(#waiting_player{player = #player{uuid = UUID}}) ->
+      player:response(UUID, #response{action = broadcast, data = Data})
+  end.

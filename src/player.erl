@@ -15,7 +15,7 @@
 -export([terminate/2]).
 -export([code_change/3]).
 
--record(state, {uuid, nickname, client, game_pin}).
+-record(state, {uuid, nickname, client, game_pin = undefined}).
 
 %% API.
 
@@ -51,7 +51,7 @@ handle_cast(#request{action = create}, State) ->
   client:send(State#state.client, #response{action = create, data = PIN}),
   {noreply, State};
 
-handle_cast(#request{action = join, data = PIN}, State) ->
+handle_cast(#request{action = join, data = PIN}, State = #state{game_pin = undefined}) ->
   case game:check_pin(PIN) of
     undefined ->
       {noreply, State};
@@ -59,6 +59,15 @@ handle_cast(#request{action = join, data = PIN}, State) ->
       game:join(GamePIN, state_to_player(State)),
       {noreply, State#state{game_pin = GamePIN}}
   end;
+
+handle_cast(#request{action = join, data = PIN}, State = #state{game_pin = GamePIN}) ->
+  case binary_to_atom(PIN) == GamePIN of
+    true ->
+      game:join(GamePIN, state_to_player(State));
+    false ->
+      client:send(State#state.client, #response{action = join, data = error})
+  end,
+  {noreply, State};
 
 handle_cast(#request{action = start}, State) ->
   game:start(State#state.game_pin),

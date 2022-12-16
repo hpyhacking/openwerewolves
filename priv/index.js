@@ -17,6 +17,7 @@ var pin = document.getElementById("pin");
 var server = document.getElementById("server");
 var content = document.getElementById("content");
 var output = document.getElementById("output");
+var broadcast = document.getElementById("broadcast");
 
 server.value = "ws://" + window.location.host + "/websocket";
 
@@ -94,7 +95,11 @@ function on_message(evt) {
     pin.value = obj['data']
   }
 
-  showScreen('<span style="color: blue;">RESPONSE: ' + JSON.stringify(obj) + '</span>');
+  if (obj && obj['action'] == 'broadcast') {
+    showBroadcast(obj);
+  } else {
+    showScreen('<span style="color: blue;">RESPONSE: ' + JSON.stringify(obj) + '</span>');
+  }
 };
 
 function on_close(evt) {
@@ -110,3 +115,7 @@ function showScreen(html) {
   el.innerHTML = html;
   output.insertBefore(el, output.firstChild);
 };
+
+function showBroadcast(obj) {
+  broadcast.innerText = JSON.stringify(obj)
+}

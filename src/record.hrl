@@ -3,7 +3,7 @@
 
 -record(playing_player, { role :: undefined | 'folk' | 'spy' | 'fool',
                           word = undefined  :: undefined | string(),
-                          died = false :: boolean(),
+                          is_died = false :: boolean(),
                           first_speech = false :: boolean(),
                           player :: #player{} }).
 
@@ -42,4 +42,7 @@
                 [10,3,1],
                 [11,3,1],
                 [12,3,1]]).
+
+-define(BROADCAST, [{state_timeout, 500, broadcast}]).
+-define(BROADCAST(M), [{state_timeout, M, broadcast}]).
 
