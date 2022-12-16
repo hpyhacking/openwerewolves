@@ -29,20 +29,17 @@
 -define(RSP_JOIN_GAME_ERROR, #response{action = join, data = error}).
 -define(RSP_START_GAME_ERROR, #response{action = start, data = error}).
 
--define(ROLES, [[3,1,0],
-                [3,1,1],
-                [4,1,1],
-                [5,1,1],
-                [6,1,1],
-                [6,2,1],
-                [7,2,1],
-                [8,2,1],
-                [9,2,1],
-                [9,3,1],
-                [10,3,1],
-                [11,3,1],
-                [12,3,1]]).
-
--define(BROADCAST, [{state_timeout, 500, broadcast}]).
--define(BROADCAST(M), [{state_timeout, M, broadcast}]).
+-define(ROLES, [[3,1,0],    %4
+                [3,1,1],    %5
+                [4,1,1],    %6
+                [5,1,1],    %7
+                [6,1,1],    %8
+                [6,2,1],    %9
+                [7,2,1],    %10
+                [8,2,1],    %11
+                [9,2,1],    %12
+                [9,3,1],    %13
+                [10,3,1],   %14
+                [11,3,1],   %15
+                [12,3,1]]). %16
 

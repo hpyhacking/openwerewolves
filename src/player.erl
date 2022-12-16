@@ -78,7 +78,7 @@ handle_cast(#request{action = ready}, State) ->
   {noreply, State};
 
 handle_cast(#request{action = died}, State) ->
-  %% TODO
+  game:died(State#state.game_pin, state_to_player(State)),
   {noreply, State};
 
 handle_cast(Data, State) ->

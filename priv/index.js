@@ -19,6 +19,8 @@ var content = document.getElementById("content");
 var output = document.getElementById("output");
 var broadcast = document.getElementById("broadcast");
 
+let start_timer = Date.now();
+
 server.value = "ws://" + window.location.host + "/websocket";
 
 function connect()
@@ -77,6 +79,14 @@ document.getElementById("btn_start").addEventListener("click", function() {
   };
 });
 
+document.getElementById("btn_died").addEventListener("click", function() {
+  if (websocket.readyState == websocket.OPEN) {
+    websocket.send(JSON.stringify({action: 'died'}));
+  } else {
+    showScreen('websocket is not connected');
+  };
+});
+
 function on_open(evt) {
   showScreen('<span style="color: green;">CONNECTED </span>');
 
@@ -117,5 +127,6 @@ function showScreen(html) {
 };
 
 function showBroadcast(obj) {
-  broadcast.innerText = JSON.stringify(obj)
+  let diff = Date.now() - start_timer;
+  broadcast.innerText = JSON.stringify(obj) + " " + diff + "s"
 }

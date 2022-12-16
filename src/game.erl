@@ -13,12 +13,16 @@
 -export([terminate/3]).
 -export([code_change/4]).
 
--record(state, {playing_players = [], waiting_players = []}).
+-record(state, {roles, playing_players = [], waiting_players = []}).
 
 -define(HANDLE_COMMON, ?FUNCTION_NAME(T, C, D) -> handle_common(T, C, D)).
 
 -define(MINIMUM_PLAYERS, 4).
 -define(MAXIMUM_PLAYERS, 16).
+
+-define(BROADCAST, [{state_timeout, 500, broadcast}]).
+-define(BROADCAST(M), [{state_timeout, M, broadcast}]).
+-define(BROADCAST_WIN, [{state_timeout, 500, broadcast_win}]).
 
 %% API.
 
@@ -58,14 +62,14 @@ init([]) ->
 waiting(enter, _OldState, StateData) ->
   logger:log(debug, "game:waiting enter state: ~p", [StateData]),
   ReplacedPlayers = [X#waiting_player{is_ready = false} || X <- StateData#state.waiting_players],
-  {keep_state, StateData#state{playing_players = [], waiting_players = ReplacedPlayers}, ?BROADCAST(1000)};
+  {keep_state, StateData#state{roles = [], playing_players = [], waiting_players = ReplacedPlayers}, ?BROADCAST(1000)};
 
 waiting(state_timeout, broadcast, #state{waiting_players = Players}) ->
   lists:foreach(broadcast(<<"WAITING">>), Players),
   {keep_state_and_data, ?BROADCAST(1000)};
 
 waiting(cast, {ready, #player{uuid = UUID}}, StateData = #state{waiting_players = Players}) ->
-  case is_exist(UUID, Players) of
+  case is_exist_in_waiting(UUID, Players) of
     false -> 
       keep_state_and_data;
     _ -> 
@@ -77,9 +81,9 @@ waiting(cast, start, StateData) ->
 
   case length(Players) >= ?MINIMUM_PLAYERS of
     true ->
-      [[Folk, Spy, Fool]] = [X || X <- ?ROLES, lists:sum(X) =:= length(Players)],
+      [Roles = [Folk, Spy, Fool]] = [X || X <- ?ROLES, lists:sum(X) =:= length(Players)],
       PlayingPlayers = shuffle(assign_roles(Folk, Spy, Fool, shuffle(Players))),
-      {next_state, playing, StateData#state{playing_players = PlayingPlayers}};
+      {next_state, playing, StateData#state{roles = Roles, playing_players = PlayingPlayers}};
     false -> 
       keep_state_and_data
   end;
@@ -97,6 +101,10 @@ playing(state_timeout, broadcast, State) ->
   lists:foreach(broadcast(<<"PLAYING">>), State#state.waiting_players),
   keep_state_and_data;
 
+playing(state_timeout, {broadcast_win, Win}, State) ->
+  lists:foreach(broadcast(Win, broadcast_win), State#state.waiting_players),
+  {next_state, waiting, State};
+
 playing(cast, {ready, #player{uuid = UUID}}, _StateData) ->
   player:response(UUID, #response{action = error, data = playing_ready}),
   keep_state_and_data;
@@ -104,11 +112,43 @@ playing(cast, {ready, #player{uuid = UUID}}, _StateData) ->
 playing(cast, start, _StateData) ->
 	keep_state_and_data;
 
-playing(cast, {died, #player{uuid = UUID}}, StateData) ->
-  PlayingPlayers = update_died(UUID, StateData#state.playing_players),
-  {keep_state, StateData#state{playing_players = PlayingPlayers}, ?BROADCAST};
+playing(cast, {died, #player{uuid = UUID}}, S = #state{roles = Roles, playing_players = Players}) ->
+  case is_exist_in_playing(UUID, Players) of
+    false ->
+      keep_state_and_data;
+    _ ->
+      PlayingPlayers = update_died(UUID, Players),
+
+      case witch_team_win(Roles, PlayingPlayers) of
+        [] ->
+          %% no team has won yet
+          {keep_state, S#state{playing_players = PlayingPlayers}, ?BROADCAST};
+        L ->
+          {keep_state, S#state{playing_players = PlayingPlayers}, [{state_timeout, 500, {broadcast_win, L}}]}
+      end
+  end;
 
 ?HANDLE_COMMON.
+
+witch_team_win([_, Spy, Fool], Players) ->
+  case count(spy, Players) == 0 of
+    true when Fool == 0 -> 
+      [folk];
+    true -> 
+      %% folk team win, maybe fool win too
+      %% all spies died
+      case count(fool, Players) == Fool of
+        true -> [folk, fool];
+        false -> [folk]
+      end;
+    false ->
+      case count(folk, Players) == Spy of
+        %% spy team win
+        %% folks died to equal spies initial
+        true -> [spy];
+        false -> []
+      end
+  end.
 
 terminate(_Reason, _StateName, _StateData) ->
 	ok.
@@ -120,7 +160,7 @@ code_change(_OldVsn, StateName, StateData, _Extra) ->
 %handle_common(timeout, _, StateData = #state{}) ->
 handle_common(cast, {join, P = #player{uuid = UUID}}, StateData = #state{waiting_players = Players}) ->
   %% boardcast game players info to all players client
-  case is_exist(UUID, Players) of
+  case is_exist_in_waiting(UUID, Players) of
     false ->
       case length(Players) < ?MAXIMUM_PLAYERS of
         false ->
@@ -167,8 +207,12 @@ update_ready(UUID, [H|T]) when UUID == H#waiting_player.player#player.uuid ->
 update_ready(UUID, [H|T]) ->
   update_ready(UUID, T ++ [H]).
 
-is_exist(UUID, WaitingPlayers) ->
+is_exist_in_waiting(UUID, WaitingPlayers) ->
   Players = [X#waiting_player.player || X <- WaitingPlayers],
+  lists:keyfind(UUID, #player.uuid, Players).
+
+is_exist_in_playing(UUID, PlayingPlayers) ->
+  Players = [X#playing_player.player || X <- PlayingPlayers],
   lists:keyfind(UUID, #player.uuid, Players).
 
 update_died(UUID, [H|T]) when UUID == H#playing_player.player#player.uuid ->
@@ -177,6 +221,19 @@ update_died(UUID, [H|T]) ->
   update_died(UUID, T ++ [H]).
 
 broadcast(Data) ->
+  broadcast(Data, broadcast).
+
+broadcast(Data, Action) ->
   fun(#waiting_player{player = #player{uuid = UUID}}) ->
-      player:response(UUID, #response{action = broadcast, data = Data})
+      player:response(UUID, #response{action = Action, data = Data})
   end.
+
+count(Role, Players) ->
+  count(Role, Players, 0).
+count(_Role, [], Acc) -> Acc;
+count(Role, [H|T], Acc) when H#playing_player.is_died == false, H#playing_player.role == Role ->
+  count(Role, T, Acc + 1);
+count(Role, [_|T], Acc) ->
+  count(Role, T, Acc).
+  
+  
