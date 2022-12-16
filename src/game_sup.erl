@@ -31,5 +31,4 @@ generate_unique_pin(_, _PIN) ->
 init_game() ->
   PIN = generate_unique_pin(),
   supervisor:start_child(?MODULE, #{id => PIN, start => {game, start_link, [PIN]}}),
-  io:format("GAME SERVER ~p CREATED~n", [PIN]),
   PIN.

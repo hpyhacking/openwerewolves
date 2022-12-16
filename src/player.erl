@@ -1,11 +1,11 @@
 -module(player).
 -behaviour(gen_server).
 
--include_lib("player.hrl").
+-include_lib("record.hrl").
 
 %% API.
 -export([start_link/2]).
--export([set_connection/1, to_client/2, to_server/2]).
+-export([set_client/1, response/2, request/2]).
 
 %% gen_server.
 -export([init/1]).
@@ -22,49 +22,62 @@
 start_link(UUID, Nickname) ->
   gen_server:start_link({global, UUID}, ?MODULE, [UUID, Nickname], []).
 
-set_connection(UUID) ->
-  gen_server:call({global, UUID}, set_connection).
+set_client(UUID) ->
+  gen_server:call({global, UUID}, set_client).
 
-to_client(UUID, Data) ->
-  gen_server:cast({global, UUID}, {to_client, Data}).
+response(UUID, Rsp) ->
+  gen_server:cast({global, UUID}, Rsp).
 
-to_server(UUID, #{<<"action">> := Action, <<"data">> := Data}) ->
-  gen_server:cast({global, UUID}, {list_to_atom(binary_to_list(Action)), Data});
-to_server(UUID, #{<<"action">> := Action}) ->
-  gen_server:cast({global, UUID}, {list_to_atom(binary_to_list(Action))}).
+request(UUID, Req) ->
+  gen_server:cast({global, UUID}, Req).
 
 %% gen_server.
 
 init([UUID, Nickname]) ->
   {ok, #state{uuid = UUID, nickname = Nickname}}.
 
-handle_call(set_connection, {ClientPid, _}, State) ->
-  {reply, ok, State#state{client = ClientPid}};
+handle_call(set_client, {Client, _}, State) ->
+  {reply, ok, State#state{client = Client}};
+
 handle_call(_Request, _From, State) ->
   {reply, ignored, State}.
 
-handle_cast({to_client, Data}, State) ->
-  client:send(State#state.client, Data),
+handle_cast(Rsp = #response{}, State) ->
+  client:send(State#state.client, Rsp),
   {noreply, State};
-handle_cast({create_game}, State = #state{uuid = UUID, nickname = Nickname}) ->
+
+handle_cast(#request{action = create}, State) ->
   PIN = game_sup:init_game(),
-  ok = game:join(PIN, #player{uuid = UUID, nickname = Nickname}),
-  client:send(State#state.client, #{pin => PIN}),
-  {noreply, State#state{game_pin = PIN}};
-handle_cast({join_game, PIN}, State = #state{uuid = UUID, nickname = Nickname}) ->
-  PIN2 = list_to_atom(binary_to_list(PIN)),
-  ok = game:join(PIN2, #player{uuid = UUID, nickname = Nickname}),
-  client:send(State#state.client, #{pin => PIN}),
-  {noreply, State#state{game_pin = PIN}};
-handle_cast({ready}, State) ->
+  client:send(State#state.client, #response{action = create, data = PIN}),
   {noreply, State};
-handle_cast({died}, State) ->
+
+handle_cast(#request{action = join, data = PIN}, State) ->
+  case game:check_pin(PIN) of
+    undefined ->
+      {noreply, State};
+    GamePIN->
+      game:join(GamePIN, state_to_player(State)),
+      {noreply, State#state{game_pin = GamePIN}}
+  end;
+
+handle_cast(#request{action = start}, State) ->
+  game:start(State#state.game_pin),
   {noreply, State};
+
+handle_cast(#request{action = ready}, State) ->
+  game:ready(State#state.game_pin, state_to_player(State)),
+  {noreply, State};
+
+handle_cast(#request{action = died}, State) ->
+  %% TODO
+  {noreply, State};
+
 handle_cast(Data, State) ->
-  io:format("data ~p~n", [Data]),
+  logger:log(debug, "player:handle_cast data: ~p state: ~p", [Data, State]),
   {noreply, State}.
 
-handle_info(_Info, State) ->
+handle_info(Info, State) ->
+  logger:log(debug, "player:handle_info info: ~p state: ~p", [Info, State]),
   {noreply, State}.
 
 terminate(_Reason, _State) ->
@@ -72,3 +85,7 @@ terminate(_Reason, _State) ->
 
 code_change(_OldVsn, State, _Extra) ->
   {ok, State}.
+
+% private
+state_to_player(#state{uuid = UUID, nickname = Nickname}) ->
+  #player{uuid = UUID, nickname = Nickname}.
