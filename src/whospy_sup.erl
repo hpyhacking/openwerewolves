@@ -13,5 +13,7 @@ init([]) ->
                  permanent, infinity, supervisor, [player_sup]},
   GameSup = {game_sup, {game_sup, start_link, []}, 
                  permanent, infinity, supervisor, [game_sup]},
-	Procs = [PlayerSup, GameSup],
+  TopicSup = {topic_sup, {topic_sup, start_link, []}, 
+                 permanent, infinity, supervisor, [topic_sup]},
+	Procs = [PlayerSup, GameSup, TopicSup],
 	{ok, {RestartStrategy, Procs}}.

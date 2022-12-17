@@ -22,11 +22,11 @@ send(Client, Data) ->
 %% Websocket Handler
 
 init(Req, _Opts) ->
-  #{uuid := UUID, nickname := Nickname} = fetch_query(Req),
-  {cowboy_websocket, Req, #{uuid => list_to_atom(UUID), nickname => Nickname}}.
+  #{uuid := UUID} = fetch_query(Req),
+  {cowboy_websocket, Req, #{uuid => list_to_atom(UUID)}}.
 
-websocket_init(State = #{uuid := UUID, nickname := Nickname}) ->
-  player_sup:start_player(UUID, Nickname),
+websocket_init(State = #{uuid := UUID}) ->
+  player_sup:start_player(UUID),
   ok = player:set_client(UUID),
   {[], State}.
 

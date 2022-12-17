@@ -4,7 +4,7 @@
 
 %% API.
 -export([start_link/1]).
--export([join/2, died/2, start/1, ready/2, check_pin/1]).
+-export([join/2, died/2, start/1, ready/2, check_pin/1, inspect/2]).
 
 %% gen_statem.
 -export([callback_mode/0]).
@@ -33,6 +33,9 @@ ready(PIN, Player) ->
 
 start(PIN) -> 
 	gen_statem:cast({global, PIN}, start).
+
+inspect(PIN, Player) -> 
+	gen_statem:cast({global, PIN}, {inspect, Player}).
 
 died(PIN, Player) -> 
 	gen_statem:cast({global, PIN}, {died, Player}).
@@ -80,12 +83,16 @@ waiting(cast, start, StateData) ->
 
   case match_roles_by_count(C) of
     Roles = [Folk, Spy, Fool] ->
-      [H|T] = shuffle(assign_roles(Folk, Spy, Fool, shuffle(Players))),
+      [FolkTopic, SpyTopic] = topic:pick(),
+      [H|T] = shuffle(assign_roles(Folk, Spy, Fool, FolkTopic, SpyTopic, shuffle(Players))),
       PlayingPlayers = [H#playing_player{first_speech = true}|T],
       {next_state, playing, StateData#state{roles = Roles, playing_players = PlayingPlayers}};
     'undefined' ->
       keep_state_and_data
   end;
+
+waiting(cast, {inspect, _Player}, _StateData) ->
+  keep_state_and_data;
 
 waiting(cast, {died, _Player}, _StateData) ->
   keep_state_and_data;
@@ -111,6 +118,11 @@ playing(cast, {ready, #player{uuid = UUID}}, _StateData) ->
 
 playing(cast, start, _StateData) ->
 	keep_state_and_data;
+
+playing(cast, {inspect, #player{uuid = UUID}}, #state{playing_players = Players}) ->
+  Topic = inspect_topic(UUID, Players),
+  player:response(UUID, #response{action = inspect, data = Topic}),
+  keep_state_and_data;
 
 playing(cast, {died, #player{uuid = UUID}}, S = #state{roles = Roles, playing_players = Players}) ->
   case is_exist_in_playing(UUID, Players) of
@@ -157,8 +169,7 @@ code_change(_OldVsn, StateName, StateData, _Extra) ->
 	{ok, StateName, StateData}.
 
 % privates
-%handle_common(timeout, _, StateData = #state{}) ->
-handle_common(cast, {join, P = #player{uuid = UUID}}, StateData = #state{waiting_players = Players}) ->
+handle_common(cast, {join, P = #player{uuid = UUID, nickname = Nickname}}, StateData = #state{waiting_players = Players}) ->
   %% boardcast game players info to all players client
   case is_exist_in_waiting(UUID, Players) of
     false ->
@@ -170,27 +181,39 @@ handle_common(cast, {join, P = #player{uuid = UUID}}, StateData = #state{waiting
         true ->
           player:response(UUID, ?RSP_JOIN_GAME_OK),
           NewPlayer = #waiting_player{player = P},
-          {keep_state, StateData#state{waiting_players = [NewPlayer|Players]}}
+          {keep_state, StateData#state{waiting_players = [NewPlayer|Players]}, [{state_timeout, 500, broadcast}]}
       end;
     _ -> 
+      UpdatedPlayers = update_player_nickname(UUID, Nickname, Players),
       player:response(UUID, ?RSP_JOIN_GAME_OK),
-      keep_state_and_data
+      {keep_state, StateData#state{waiting_players = UpdatedPlayers}, [{state_timeout, 500, broadcast}]}
   end;
 
 handle_common(Event, EventData, State) ->
   logger:log(debug, "game:handle_common event: ~p event_data: ~p state: ~p", [Event, EventData, State]),
   keep_state_and_data.
 
-assign_roles(0, 0, 0, L) -> L;
-assign_roles(Folk, Spy, Fool, [H|T]) when Folk /= 0 ->
-  N = T ++ [#playing_player{role = folk, player = H}],
-  assign_roles(Folk - 1, Spy, Fool, N);
-assign_roles(Folk, Spy, Fool, [H|T]) when Spy /= 0 ->
-  N = T ++ [#playing_player{role = spy, player = H}],
-  assign_roles(Folk, Spy - 1, Fool, N);
-assign_roles(Folk, Spy, Fool, [H|T]) when Fool /= 0 ->
-  N = T ++ [#playing_player{role = fool, player = H}],
-  assign_roles(Folk, Spy, Fool - 1, N).
+inspect_topic(_, []) -> <<"">>;
+inspect_topic(UUID, [H|_]) when H#playing_player.player#player.uuid == UUID ->
+  H#playing_player.topic;
+inspect_topic(UUID, [_|T]) ->
+  inspect_topic(UUID, T).
+
+update_player_nickname(UUID, Nickname, [H|T]) when H#waiting_player.player#player.uuid == UUID ->
+  [H#waiting_player{player = H#waiting_player.player#player{nickname = Nickname}} | T];
+update_player_nickname(UUID, Nickname, [H|T]) ->
+  update_player_nickname(UUID, Nickname, T ++ [H]).
+
+assign_roles(0, 0, 0, _, _, L) -> L;
+assign_roles(Folk, Spy, Fool, FolkTopic, SpyTopic, [H|T]) when Folk /= 0 ->
+  N = T ++ [#playing_player{role = folk, topic = FolkTopic, player = H}],
+  assign_roles(Folk - 1, Spy, Fool, FolkTopic, SpyTopic, N);
+assign_roles(Folk, Spy, Fool, FolkTopic, SpyTopic, [H|T]) when Spy /= 0 ->
+  N = T ++ [#playing_player{role = spy, topic = SpyTopic, player = H}],
+  assign_roles(Folk, Spy - 1, Fool, FolkTopic, SpyTopic, N);
+assign_roles(Folk, Spy, Fool, FolkTopic, SpyTopic, [H|T]) when Fool /= 0 ->
+  N = T ++ [#playing_player{role = fool, topic = <<"">>, player = H}],
+  assign_roles(Folk, Spy, Fool - 1, FolkTopic, SpyTopic, N).
 
 shuffle(L) ->
   Times = length(L),
@@ -233,18 +256,18 @@ count(Role, [H|T], Acc) when H#playing_player.is_died == false, H#playing_player
 count(Role, [_|T], Acc) ->
   count(Role, T, Acc).
 
-state_to_broadcast_playing(#state{playing_players = Players}) ->
+state_to_broadcast_playing(#state{roles = Roles, playing_players = Players}) ->
   P = [[{uuid, X#playing_player.player#player.uuid},
-        {nickname, list_to_binary(X#playing_player.player#player.nickname)},
+        {nickname, X#playing_player.player#player.nickname},
         {first_speech, X#playing_player.first_speech},
         {is_died, X#playing_player.is_died}] || X <- Players],
-  #{players => P}.
+  #{roles => Roles, players => P}.
 
 state_to_broadcast_waiting(#state{waiting_players = Players}) ->
   {C, _} = count_ready_players(Players),
 
   P = [[{uuid, X#waiting_player.player#player.uuid},
-        {nickname, list_to_binary(X#waiting_player.player#player.nickname)},
+        {nickname, X#waiting_player.player#player.nickname},
         {is_ready, X#waiting_player.is_ready}] || X <- Players],
 
   case match_roles_by_count(C) of

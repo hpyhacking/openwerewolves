@@ -2,32 +2,17 @@
 <html lang="en">
   <head>
     <meta charset="utf-8"/>
-    <title>Who Is Spy</title>
+    <title>谁是卧底</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@300&display=swap" rel="stylesheet">
+    <link rel="stylesheet" type="text/css" href="./index.css" media="screen" />
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
   </head>
   <body>
-
-    <header>
-      <h1>Who Is Spy Client - <span id='nickname'></span></h1>
-    </header>
-
-    <nav>
-      <input type='text' id="uuid" value=""></input><br />
-      <input type='text' id="server" value=""></input><br /><br />
-      <button type="button" id='btn_connect'>Connection</button><br /><br />
-
-      <input type='text' id="pin" value=""></input><br /><br />
-      <button type="button" id='btn_create'>Create</button>
-      <button type="button" id='btn_join'>Join</button>
-      <button type="button" id='btn_ready'>Ready</button>
-      <button type="button" id='btn_start'>Start</button>
-      <button type="button" id='btn_died'>Died</button>
-    </nav>
-
-    <main id="content">
-      <div id="broadcast"></div>
-      <div id="output"></div>
-    </main>
-
-    <script type="module" src="./index.js"></script>
+    
+    <main id="app"></main>
+    <script type="module" src="./app.js"></script>
   </body>
 </html> 

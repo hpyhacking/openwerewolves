@@ -4,7 +4,7 @@
 -include_lib("record.hrl").
 
 %% API.
--export([start_link/2]).
+-export([start_link/1]).
 -export([set_client/1, response/2, request/2]).
 
 %% gen_server.
@@ -19,8 +19,8 @@
 
 %% API.
 
-start_link(UUID, Nickname) ->
-  gen_server:start_link({global, UUID}, ?MODULE, [UUID, Nickname], []).
+start_link(UUID) ->
+  gen_server:start_link({global, UUID}, ?MODULE, UUID, []).
 
 set_client(UUID) ->
   gen_server:call({global, UUID}, set_client).
@@ -33,8 +33,8 @@ request(UUID, Req) ->
 
 %% gen_server.
 
-init([UUID, Nickname]) ->
-  {ok, #state{uuid = UUID, nickname = Nickname}}.
+init(UUID) ->
+  {ok, #state{uuid = UUID}}.
 
 handle_call(set_client, {Client, _}, State) ->
   {reply, ok, State#state{client = Client}};
@@ -51,23 +51,27 @@ handle_cast(#request{action = create}, State) ->
   client:send(State#state.client, #response{action = create, data = PIN}),
   {noreply, State};
 
-handle_cast(#request{action = join, data = PIN}, State = #state{game_pin = undefined}) ->
+handle_cast(#request{action = join, data = [PIN, Nickname]}, State = #state{game_pin = undefined}) ->
   case game:check_pin(PIN) of
     undefined ->
+      client:send(State#state.client, #response{action = join, data = error}),
       {noreply, State};
-    GamePIN->
-      game:join(GamePIN, state_to_player(State)),
-      {noreply, State#state{game_pin = GamePIN}}
+    GamePIN ->
+      NewState = State#state{nickname = Nickname, game_pin = GamePIN},
+      game:join(GamePIN, state_to_player(NewState)),
+      {noreply, NewState}
   end;
 
-handle_cast(#request{action = join, data = PIN}, State = #state{game_pin = GamePIN}) ->
+handle_cast(#request{action = join, data = [PIN, Nickname]}, State = #state{game_pin = GamePIN}) ->
   case binary_to_atom(PIN) == GamePIN of
     true ->
-      game:join(GamePIN, state_to_player(State));
+      NewState = State#state{nickname = Nickname},
+      game:join(GamePIN, state_to_player(NewState)),
+      {noreply, NewState};
     false ->
-      client:send(State#state.client, #response{action = join, data = error})
-  end,
-  {noreply, State};
+      client:send(State#state.client, #response{action = join, data = error}),
+      {noreply, State}
+  end;
 
 handle_cast(#request{action = start}, State) ->
   game:start(State#state.game_pin),
@@ -75,6 +79,10 @@ handle_cast(#request{action = start}, State) ->
 
 handle_cast(#request{action = ready}, State) ->
   game:ready(State#state.game_pin, state_to_player(State)),
+  {noreply, State};
+
+handle_cast(#request{action = inspect}, State) ->
+  game:inspect(State#state.game_pin, state_to_player(State)),
   {noreply, State};
 
 handle_cast(#request{action = died}, State) ->
