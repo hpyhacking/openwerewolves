@@ -2,7 +2,7 @@
                   nickname :: string() }).
 
 -record(playing_player, { role :: undefined | 'folk' | 'spy' | 'fool',
-                          word = undefined  :: undefined | string(),
+                          topic = undefined  :: undefined | string(),
                           is_died = false :: boolean(),
                           first_speech = false :: boolean(),
                           player :: #player{} }).

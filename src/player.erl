@@ -81,6 +81,10 @@ handle_cast(#request{action = ready}, State) ->
   game:ready(State#state.game_pin, state_to_player(State)),
   {noreply, State};
 
+handle_cast(#request{action = inspect}, State) ->
+  game:inspect(State#state.game_pin, state_to_player(State)),
+  {noreply, State};
+
 handle_cast(#request{action = died}, State) ->
   game:died(State#state.game_pin, state_to_player(State)),
   {noreply, State};
