@@ -2,6 +2,8 @@ const { createApp } = Vue
 import Default from './default.js'
 import Game from './game.js'
 
+import { v4 as uuidv4 } from 'https://jspm.dev/uuid';
+
 const PIN_REGEX = new RegExp('^[A-Z2-9]{4}$')
 
 const app = createApp({
@@ -32,6 +34,7 @@ const app = createApp({
 })
 
 class Connection {
+  #ping
   #websocket
 
   get uuid() {
@@ -54,6 +57,23 @@ class Connection {
     }
 
     this.#websocket = new WebSocket(endpoint);
+
+    let ping = this.#ping
+    let websocket = this.#websocket
+
+    this.#websocket.onopen = function() {
+      ping = setInterval(function() {
+        websocket.send("ping")
+      }, 5000);
+    }
+
+    this.#websocket.onclose = function() {
+      clearInterval(ping)
+    }
+
+    this.#websocket.onerror = function() {
+      clearInterval(ping)
+    }
   }
 
   on_data(callback) {
@@ -64,9 +84,6 @@ class Connection {
   }
 
   on_open(callback) {
-    this.#websocket.onopen = function() {
-      callback()
-    }
 
     return this
   }

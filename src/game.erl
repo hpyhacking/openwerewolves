@@ -157,7 +157,6 @@ code_change(_OldVsn, StateName, StateData, _Extra) ->
 	{ok, StateName, StateData}.
 
 % privates
-%handle_common(timeout, _, StateData = #state{}) ->
 handle_common(cast, {join, P = #player{uuid = UUID, nickname = Nickname}}, StateData = #state{waiting_players = Players}) ->
   %% boardcast game players info to all players client
   case is_exist_in_waiting(UUID, Players) of
@@ -170,12 +169,12 @@ handle_common(cast, {join, P = #player{uuid = UUID, nickname = Nickname}}, State
         true ->
           player:response(UUID, ?RSP_JOIN_GAME_OK),
           NewPlayer = #waiting_player{player = P},
-          {keep_state, StateData#state{waiting_players = [NewPlayer|Players]}}
+          {keep_state, StateData#state{waiting_players = [NewPlayer|Players]}, [{state_timeout, 500, broadcast}]}
       end;
     _ -> 
       UpdatedPlayers = update_player_nickname(UUID, Nickname, Players),
       player:response(UUID, ?RSP_JOIN_GAME_OK),
-      {keep_state, StateData#state{waiting_players = UpdatedPlayers}}
+      {keep_state, StateData#state{waiting_players = UpdatedPlayers}, [{state_timeout, 500, broadcast}]}
   end;
 
 handle_common(Event, EventData, State) ->

@@ -54,6 +54,7 @@ handle_cast(#request{action = create}, State) ->
 handle_cast(#request{action = join, data = [PIN, Nickname]}, State = #state{game_pin = undefined}) ->
   case game:check_pin(PIN) of
     undefined ->
+      client:send(State#state.client, #response{action = join, data = error}),
       {noreply, State};
     GamePIN ->
       NewState = State#state{nickname = Nickname, game_pin = GamePIN},
