@@ -1,9 +1,56 @@
+@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@300&display=swap');
+
 html, body {
+  font-family: 'Noto Serif SC', serif;
   background-color: #333;
 }
 
+
 @media only screen and (max-width: 600px) and (orientation: portrait) and (-webkit-device-pixel-ratio: 3) {
   html, body {
-    background-color: lightblue;
+    background-color: #CCC;
   }
+}
+
+button {
+  font-family: 'Noto Serif SC', serif;
+  padding: .5em .8em;
+}
+
+input[type=text] {
+  padding: .5em;
+}
+
+span.playing {
+  color: #2196f3;
+}
+
+span.waiting {
+  color: #009688;
+}
+
+#nickname {
+  margin-top: .5em;
+  margin-bottom: .5em;
+  display: block;
+  height: 1.2em;
+}
+
+ul.players-list {
+  padding-left: .3em;
+}
+
+ul.players-list li {
+  display: flex;
+  justify-content: space-between;
+}
+
+h3.topic {
+  margin-top: .4em;
+  margin-bottom: .5em;
+}
+
+p.roles {
+  margin-top: .1em;
+  margin-bottom: .5em;
 }

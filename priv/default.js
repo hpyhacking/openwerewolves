@@ -15,6 +15,6 @@ export default {
       }
     })
   },
-  template: `<div><button @click="create">創建遊戲</button></div>`
+  template: `<div><button @click="create">创建游戏</button></div>`
 }
 

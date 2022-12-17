@@ -261,7 +261,7 @@ state_to_broadcast_playing(#state{roles = Roles, playing_players = Players}) ->
         {nickname, X#playing_player.player#player.nickname},
         {first_speech, X#playing_player.first_speech},
         {is_died, X#playing_player.is_died}] || X <- Players],
-  #{roles = Roles, players => P}.
+  #{roles => Roles, players => P}.
 
 state_to_broadcast_waiting(#state{waiting_players = Players}) ->
   {C, _} = count_ready_players(Players),

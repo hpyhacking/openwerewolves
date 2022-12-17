@@ -46,6 +46,10 @@ class Connection {
     return v
   }
 
+  clear_session() {
+    window.sessionStorage.clear()
+  }
+
   constructor() {
     let endpoint = window.location.host + "/websocket"
     endpoint = endpoint + "?uuid=" + this.uuid
