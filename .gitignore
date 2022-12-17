@@ -5,3 +5,4 @@ deps
 ebin/*.beam
 logs
 relx
+topics.txt
