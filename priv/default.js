@@ -1,6 +1,10 @@
 export default {
   data() {
-    return { }
+    return {
+      state: []
+    }
+  },
+  computed: {
   },
   methods: {
     create() {
@@ -8,13 +12,12 @@ export default {
     }
   },
   mounted() {
-    this.connection.on_data(function(response) {
-      console.log("default on_data")
+    this.connection.on_data = (response) => {
       if (response.action == 'create') {
         window.location.assign("#" + response.data)
       }
-    })
+    }
   },
-  template: `<div><button @click="create">创建游戏</button></div>`
+  template: `<div> <button @click="create">创建游戏</button> </div>`
 }
 

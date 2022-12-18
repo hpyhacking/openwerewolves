@@ -44,45 +44,43 @@ export default {
     }
   },
   mounted() {
-    let $ = this
-
-    this.connection.on_data(function(response) {
+    this.connection.on_data = (response) => {
       if (response.action == "join" && response.data == "error") {
         window.location.assign("/")
       }
 
       if (response.action == "join" && response.data == "ok") {
-        $.is_in_game = true
+        this.is_in_game = true
       }
 
       if (response.action == "broadcast_waiting") {
-        $.is_waiting = true
-        $.is_playing = false
-        $.roles = response.data.roles
-        $.waiting_players = response.data.players
+        this.is_waiting = true
+        this.is_playing = false
+        this.roles = response.data.roles
+        this.waiting_players = response.data.players
       }
 
       if (response.action == "broadcast_playing") {
-        $.is_waiting = false
-        $.is_playing = true
-        $.roles = response.data.roles
-        $.playing_players = response.data.players
+        this.is_waiting = false
+        this.is_playing = true
+        this.roles = response.data.roles
+        this.playing_players = response.data.players
       }
 
       if (response.action == "broadcast_win") {
-        $.win = response.data
+        this.win = response.data
       }
 
       if (response.action == "inspect") {
-        $.topic = response.data
-        if (response.data == "") {
-          $.topic = "[blank]"
-        }
-        setTimeout(function() { $.topic = undefined }, 3000)
-      }
+        this.topic = response.data
 
-      console.log("game on_data", response.action, response.data)
-    })
+        if (response.data == "") {
+          this.topic = "[blank]"
+        }
+
+        setTimeout(() => { this.topic = undefined }, 3000)
+      }
+    }
   },
   template: `
     <section>

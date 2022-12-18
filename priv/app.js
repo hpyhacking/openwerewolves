@@ -36,6 +36,7 @@ const app = createApp({
 class Connection {
   #ping
   #websocket
+  #callback
 
   get uuid() {
     let v = window.sessionStorage.getItem("uuid")
@@ -46,11 +47,11 @@ class Connection {
     return v
   }
 
-  clear_session() {
-    window.sessionStorage.clear()
+  get state() {
+    return this.#websocket.readyState
   }
 
-  constructor() {
+  get endpoint() {
     let endpoint = window.location.host + "/websocket"
     endpoint = endpoint + "?uuid=" + this.uuid
 
@@ -60,36 +61,37 @@ class Connection {
       endpoint = "ws://" + endpoint
     }
 
-    this.#websocket = new WebSocket(endpoint);
+    return endpoint
+  }
 
-    let ping = this.#ping
-    let websocket = this.#websocket
+  constructor() {
+    this.#connect()
 
-    this.#websocket.onopen = function() {
-      ping = setInterval(function() {
-        websocket.send("ping")
-      }, 5000);
+    setInterval(() => {
+      if (this.#websocket.readyState == WebSocket.OPEN) {
+        this.#websocket.send("ping")
+      }
+    }, 5000);
+  }
+
+  #connect() {
+    this.#websocket = new WebSocket(this.endpoint);
+
+    this.#websocket.onclose = () => {
+      setTimeout(() => {
+        this.#connect()
+      }, 500)
     }
 
-    this.#websocket.onclose = function() {
-      clearInterval(ping)
-    }
-
-    this.#websocket.onerror = function() {
-      clearInterval(ping)
+    this.#websocket.onmessage = (e) => {
+      if (this.#callback) {
+        this.#callback(JSON.parse(e.data))
+      }
     }
   }
 
-  on_data(callback) {
-    this.#websocket.onmessage = function(evt) {
-      callback(JSON.parse(evt.data))
-    }
-    return this
-  }
-
-  on_open(callback) {
-
-    return this
+  set on_data(callback) {
+    this.#callback = callback
   }
 
   send(action, data) {
