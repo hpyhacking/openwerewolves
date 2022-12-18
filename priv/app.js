@@ -4,8 +4,6 @@ import Default from './default.js'
 import Game from './game.js'
 import Manual from './manual.js'
 
-import { v4 as uuidv4 } from 'https://jspm.dev/uuid';
-
 const PIN_REGEX = new RegExp('^[A-Z2-9]{4}$')
 
 const app = createApp({
