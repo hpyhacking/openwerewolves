@@ -4,8 +4,6 @@ export default {
       state: []
     }
   },
-  computed: {
-  },
   methods: {
     create() {
       this.connection.send('create')
@@ -18,6 +16,13 @@ export default {
       }
     }
   },
-  template: `<div> <button @click="create">创建游戏</button> </div>`
+  template: `
+  <section>
+    <fieldset>
+      <legend>谁是卧底</legend>
+      <button @click="create">创建游戏</button>
+    </fieldset>
+  </section>
+  `
 }
 
