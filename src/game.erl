@@ -84,8 +84,7 @@ waiting(cast, start, StateData) ->
   case match_roles_by_count(C) of
     Roles = [Folk, Spy, Fool] ->
       [FolkTopic, SpyTopic] = topic:pick(),
-      [H|T] = shuffle(assign_roles(Folk, Spy, Fool, FolkTopic, SpyTopic, shuffle(Players))),
-      PlayingPlayers = [H#playing_player{first_speech = true}|T],
+      PlayingPlayers = shuffle(assign_roles(Folk, Spy, Fool, FolkTopic, SpyTopic, shuffle(Players))),
       {next_state, playing, StateData#state{roles = Roles, playing_players = PlayingPlayers}};
     'undefined' ->
       keep_state_and_data
@@ -108,8 +107,9 @@ playing(state_timeout, broadcast, State) ->
   lists:foreach(broadcast(Data, broadcast_playing), State#state.waiting_players),
   keep_state_and_data;
 
-playing(state_timeout, {broadcast_win, Win}, State) ->
-  lists:foreach(broadcast(Win, broadcast_win), State#state.waiting_players),
+playing(state_timeout, {broadcast_win, Wins}, State) ->
+  Data = state_to_broadcast_win(State, Wins),
+  lists:foreach(broadcast(Data, broadcast_winning), State#state.waiting_players),
   {next_state, waiting, State};
 
 playing(cast, {ready, #player{uuid = UUID}}, _StateData) ->
@@ -131,18 +131,18 @@ playing(cast, {died, #player{uuid = UUID}}, S = #state{roles = Roles, playing_pl
     _ ->
       PlayingPlayers = update_died(UUID, Players),
 
-      case witch_team_win(Roles, PlayingPlayers) of
+      case which_team_win(Roles, PlayingPlayers) of
         [] ->
           %% no team has won yet
           {keep_state, S#state{playing_players = PlayingPlayers}, [{state_timeout, 500, broadcast}]};
-        L ->
-          {keep_state, S#state{playing_players = PlayingPlayers}, [{state_timeout, 500, {broadcast_win, L}}]}
+        Wins ->
+          {keep_state, S#state{playing_players = PlayingPlayers}, [{state_timeout, 500, {broadcast_win, Wins}}]}
       end
   end;
 
 ?HANDLE_COMMON.
 
-witch_team_win([_, Spy, Fool], Players) ->
+which_team_win([_, Spy, Fool], Players) ->
   case count(spy, Players) == 0 of
     true when Fool == 0 -> 
       [folk];
@@ -256,10 +256,16 @@ count(Role, [H|T], Acc) when H#playing_player.is_died == false, H#playing_player
 count(Role, [_|T], Acc) ->
   count(Role, T, Acc).
 
+state_to_broadcast_win(#state{roles = Roles, playing_players = Players}, Wins) ->
+  P = [[{uuid, X#playing_player.player#player.uuid},
+        {nickname, X#playing_player.player#player.nickname},
+        {role, X#playing_player.role},
+        {is_died, X#playing_player.is_died}] || X <- Players],
+  #{roles => Roles, players => P, wins => Wins}.
+
 state_to_broadcast_playing(#state{roles = Roles, playing_players = Players}) ->
   P = [[{uuid, X#playing_player.player#player.uuid},
         {nickname, X#playing_player.player#player.nickname},
-        {first_speech, X#playing_player.first_speech},
         {is_died, X#playing_player.is_died}] || X <- Players],
   #{roles => Roles, players => P}.
 

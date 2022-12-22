@@ -1,9 +1,9 @@
 import { v4 as uuidv4 } from 'https://jspm.dev/uuid';
 
 class Connection {
-  #ping
+  #ping = 0
   #websocket
-  #callback
+  #callback = {} 
 
   get uuid() {
     let v = window.sessionStorage.getItem("uuid")
@@ -41,6 +41,16 @@ class Connection {
     }, 5000);
   }
 
+  ping(callback) {
+    setInterval(() => {
+      this.#ping = this.#ping + 1
+      let callback = this.#callback["ping"]
+      if (callback) {
+        callback({ping: this.#ping, state: this.state})
+      }
+    }, 1000)
+  }
+
   #connect() {
     this.#websocket = new WebSocket(this.endpoint);
 
@@ -51,14 +61,16 @@ class Connection {
     }
 
     this.#websocket.onmessage = (e) => {
-      if (this.#callback) {
-        this.#callback(JSON.parse(e.data))
+      let rsp = JSON.parse(e.data)
+      let callback = this.#callback[rsp.action]
+      if (callback) {
+        callback(rsp.data)
       }
     }
   }
 
-  set on_data(callback) {
-    this.#callback = callback
+  on(action, callback) {
+    this.#callback[action] = callback
   }
 
   send(action, data) {
@@ -70,5 +82,20 @@ class Connection {
   }
 }
 
+const ConnectionStatus = {
+  data() {
+    return {
+      ping: 0,
+      state: 0
+    }
+  },
+  mounted() {
+    this.connection.on("ping", (data) => {
+      this.ping = data.ping
+      this.state = data.state
+    })
+  },
+  template: "<section> <span>{{ping}}</span> <span>{{state}}</span> </section>"
+}
 
 export default Connection

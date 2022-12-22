@@ -1,8 +1,10 @@
 const { createApp } = Vue
-import Connection from './connection.js'
-import Default from './default.js'
-import Game from './game.js'
-import Manual from './manual.js'
+
+import DefaultPage from './pages/default.js'
+import GamePage from './pages/game.js'
+
+import GuideView from './components/guide.js'
+import Connection from './components/connection.js'
 
 const PIN_REGEX = new RegExp('^[A-Z2-9]{4}$')
 
@@ -13,10 +15,10 @@ const app = createApp({
     }
   },
   components: {
-    Default, Game, Manual
+    DefaultPage, GamePage, GuideView
   },
   computed: {
-    gameHash() {
+    hash() {
       let match = this.currentPath.slice(1).match(PIN_REGEX)
       return match && match[0]
     },
@@ -30,13 +32,8 @@ const app = createApp({
 		  this.currentPath = window.location.hash
 		})
   },
-  template: `
-    <Game v-if='in_game' :gameHash="gameHash" />
-    <Default v-else />
-    <Manual />
-  `
+  template: "#app"
 })
 
-
 app.config.globalProperties.connection = new Connection()
-app.mount('#app')
+app.mount('#app_wrapper')
