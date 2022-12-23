@@ -2,7 +2,7 @@
 -behaviour(gen_server).
 
 %% API.
--export([start_link/0, pick/0]).
+-export([start_link/1, pick/1, count/1]).
 
 %% gen_server.
 -export([init/1]).
@@ -16,11 +16,14 @@
 
 %% API.
 
-start_link() ->
-	gen_server:start_link({global, ?MODULE}, ?MODULE, [], []).
+start_link(PIN) ->
+	gen_server:start_link({global, {?MODULE, PIN}}, ?MODULE, [], []).
 
-pick() ->
-  gen_server:call({global, ?MODULE}, pick).
+pick(PIN) ->
+  gen_server:call({global, {?MODULE, PIN}}, pick).
+
+count(PIN) ->
+  gen_server:call({global, {?MODULE, PIN}}, count).
 
 %% gen_server.
 
@@ -30,13 +33,19 @@ init([]) ->
 	{ok, #state{topics = Topics}}.
 
 handle_call(pick, _From, State = #state{topics = Topics}) ->
-  [T1, T2] = lists:nth(rand:uniform(length(Topics)), Topics),
+  N = rand:uniform(length(Topics)),
+  {L1, L2} = lists:split(N, Topics),
+  [[T1, T2]|T] = L2 ++ L1,
+
   case rand:uniform(100) > 50 of
     true ->
-      {reply, [T1, T2], State};
+      {reply, [T1, T2], State#state{topics = T}};
     false ->
-      {reply, [T2, T1], State}
-  end.
+      {reply, [T2, T1], State#state{topics = T}}
+  end;
+
+handle_call(count, _From, State = #state{topics = Topics}) ->
+  {reply, length(Topics), State}.
 
 handle_cast(_Msg, State) ->
 	{noreply, State}.

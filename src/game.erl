@@ -13,7 +13,7 @@
 -export([terminate/3]).
 -export([code_change/4]).
 
--record(state, {roles, playing_players = [], waiting_players = []}).
+-record(state, {pin, roles, playing_players = [], waiting_players = []}).
 
 -define(HANDLE_COMMON, ?FUNCTION_NAME(T, C, D) -> handle_common(T, C, D)).
 
@@ -23,7 +23,7 @@
 %% API.
 
 start_link(PIN) ->
-	gen_statem:start_link({global, PIN}, ?MODULE, [], []).
+	gen_statem:start_link({global, PIN}, ?MODULE, [PIN], []).
 
 join(PIN, Player) -> 
 	gen_statem:cast({global, PIN}, {join, Player}).
@@ -55,13 +55,13 @@ check_pin(PIN) when is_atom(PIN) ->
 callback_mode() ->
 	[state_functions, state_enter].
 
-init([]) ->
-	{ok, waiting, #state{}}.
+init([PIN]) ->
+	{ok, waiting, #state{pin = PIN}}.
 
 waiting(enter, _OldState, StateData) ->
   logger:log(debug, "game:waiting enter state: ~p", [StateData]),
   ReplacedPlayers = [X#waiting_player{is_ready = false} || X <- StateData#state.waiting_players],
-  NewStateData = #state{waiting_players = ReplacedPlayers},
+  NewStateData = #state{pin = StateData#state.pin, waiting_players = ReplacedPlayers},
   {keep_state, NewStateData, [{state_timeout, 100, broadcast}]};
 
 waiting(state_timeout, broadcast, State = #state{waiting_players = Players}) ->
@@ -83,7 +83,7 @@ waiting(cast, start, StateData) ->
 
   case match_roles_by_count(C) of
     Roles = [Folk, Spy, Fool] ->
-      [FolkTopic, SpyTopic] = topic:pick(),
+      [FolkTopic, SpyTopic] = topic:pick(StateData#state.pin),
       PlayingPlayers = shuffle(assign_roles(Folk, Spy, Fool, FolkTopic, SpyTopic, shuffle(Players))),
       {next_state, playing, StateData#state{roles = Roles, playing_players = PlayingPlayers}};
     'undefined' ->

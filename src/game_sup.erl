@@ -12,6 +12,12 @@ init([]) ->
 	Procs = [],
 	{ok, {{one_for_one, 1, 5}, Procs}}.
 
+init_game() ->
+  PIN = generate_unique_pin(),
+  {ok, _} = supervisor:start_child(?MODULE, #{id => {topic, PIN}, start => {topic, start_link, [PIN]}}),
+  {ok, _} = supervisor:start_child(?MODULE, #{id => PIN, start => {game, start_link, [PIN]}}),
+  PIN.
+
 generate_pin(Count, Keys) ->
   generate_pin(Count, Keys, []).
 generate_pin(Count, Keys, PIN) when Count > 0 ->
@@ -28,7 +34,3 @@ generate_unique_pin(undefined, PIN) ->
 generate_unique_pin(_, _PIN) ->
   generate_unique_pin().
 
-init_game() ->
-  PIN = generate_unique_pin(),
-  supervisor:start_child(?MODULE, #{id => PIN, start => {game, start_link, [PIN]}}),
-  PIN.
